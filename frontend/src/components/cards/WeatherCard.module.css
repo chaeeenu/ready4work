@@ -1,0 +1,93 @@
+.weather {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.current {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.tempBlock {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.tempIcon {
+  font-size: 32px;
+}
+
+.temp {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.condition {
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+}
+
+.range {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.meta {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+.hourly {
+  display: flex;
+  gap: var(--space-sm);
+  overflow-x: auto;
+  padding: var(--space-sm) 0;
+}
+
+.hour {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 52px;
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  font-size: var(--text-sm);
+}
+
+.hourTime {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+.hourTemp {
+  font-weight: 600;
+}
+
+.clothing {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-bg);
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+  line-height: 1.4;
+}
+
+.clothingIcon {
+  flex-shrink: 0;
+}

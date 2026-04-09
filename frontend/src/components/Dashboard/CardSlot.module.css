@@ -1,0 +1,10 @@
+.slot {
+  /* spacing handled by Dashboard grid */
+}
+
+.loading {
+  padding: var(--space-lg);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-tertiary);
+}

@@ -1,0 +1,317 @@
+.transit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Setup Form */
+.setupForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.setupHint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.input {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.input:focus {
+  border-color: var(--color-accent);
+}
+
+.saveBtn {
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: white;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.saveBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Route Header */
+.routeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.headerText {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.editBtn {
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.editBtn:hover {
+  background: var(--color-bg);
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.refreshBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.refreshBtn:hover {
+  background: var(--color-bg);
+}
+
+.refreshBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.spinning svg {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Route Card */
+.routeCard {
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+
+.mainRoute {
+  background: var(--color-accent-bg);
+}
+
+.routeSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.totalTime {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.totalTime small {
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+
+.routeMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+/* Timeline */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: var(--space-sm);
+  margin-left: 5px;
+  padding-left: 12px;
+  border-left: 2px solid var(--color-border);
+}
+
+/* Marker (세로선 위 원형 아이콘) */
+.marker {
+  position: absolute;
+  left: -13px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.markerDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--color-surface, #fff);
+}
+
+.markerRing {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid var(--color-text-tertiary);
+  background: var(--color-surface, #fff);
+}
+
+.markerEnd {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-text-secondary);
+  border: 2px solid var(--color-surface, #fff);
+}
+
+.arrivalLabel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.leg {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+}
+
+.lineBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px var(--space-sm);
+  border-radius: 999px;
+  color: white;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.legDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.legStations {
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+.legMeta {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+.walkLeg {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.walkIcon {
+  font-size: var(--text-sm);
+}
+
+/* Route Label */
+.routeLabel {
+  display: inline-block;
+  margin-bottom: var(--space-xs);
+  padding: 1px var(--space-sm);
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: white;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+/* Arrival Info */
+.arrivalInfo {
+  margin: var(--space-xs) 0;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+}
+
+.arrivalRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 2px 0;
+}
+
+.arrivalLine {
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.arrivalDir {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.arrivalTime {
+  margin-left: auto;
+  color: var(--color-accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Error */
+.error {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-bg);
+  font-size: var(--text-sm);
+  color: var(--color-warning);
+}

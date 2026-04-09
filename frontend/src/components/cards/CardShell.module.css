@@ -1,0 +1,45 @@
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-md) var(--space-lg);
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: var(--color-text);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.icon {
+  font-size: var(--text-lg);
+}
+
+.chevron {
+  font-size: var(--text-sm);
+  color: var(--color-text-tertiary);
+  transition: transform var(--transition-fast);
+}
+
+.chevron[data-collapsed="true"] {
+  transform: rotate(-90deg);
+}
+
+.body {
+  padding: 0 var(--space-lg) var(--space-lg);
+}
