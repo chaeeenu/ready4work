@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: ready4work
+
+# External API Configurations
+weather:
+  api:
+    key: ${env.WEATHER_API_KEY}
+    base-url: https://api.openweathermap.org
+
+tmap:
+  api:
+    key: ${env.TMAP_APP_KEY}
+    base-url: https://apis.openapi.sk.com
+
+kakao:
+  api:
+    key: ${env.KAKAO_REST_API_KEY}
+    base-url: https://dapi.kakao.com
+
+seoul:
+  api:
+    key: ${env.SEOUL_DATA_API_KEY}
+    base-url: http://swopenAPI.seoul.go.kr/api/subway
+
+datagokr:
+  api:
+    subway:
+      alert:
+        key: ${env.DATA_GO_KR_SUBWAY_ALERT_KEY}
+        base-url: https://apis.data.go.kr/B553766/ntce
+    bus:
+      arrival:
+        key: ${env.DATA_GO_KR_BUS_ARRIVAL_INFO_KEY}
+        base-url: http://ws.bus.go.kr/api/rest/arrive

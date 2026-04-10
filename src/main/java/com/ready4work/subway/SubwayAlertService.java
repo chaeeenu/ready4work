@@ -21,20 +21,20 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class SubwayAlertService {
 
-    private final WebClient dataGoKrWebClient;
-    private final String serviceKey;
+    private final WebClient subwayAlertWebClient;
+    private final String subwayAlertKey;
     private final ConcurrentHashMap<String, Mono<SubwayAlertResponse>> cache = new ConcurrentHashMap<>();
 
     private static final DateTimeFormatter TIMESTAMP_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final Set<String> DANGER_KEYWORDS = Set.of("운행중지", "사고", "중단");
 
     public SubwayAlertService(
-            @Qualifier("dataGoKrWebClient") WebClient dataGoKrWebClient,
-            @Value("${datagokr.api.key}") String serviceKey
+            @Qualifier("subwayAlertWebClient") WebClient subwayAlertWebClient,
+            @Value("${datagokr.api.subway.alert.key}") String subwayAlertKey
     ) {
-        this.dataGoKrWebClient = dataGoKrWebClient;
-        this.serviceKey = serviceKey;
-        log.info("SubwayAlertService initialized, service key present: {}", serviceKey != null && !serviceKey.isBlank());
+        this.subwayAlertWebClient = subwayAlertWebClient;
+        this.subwayAlertKey = subwayAlertKey;
+        log.info("SubwayAlertService initialized, service key present: {}", subwayAlertKey != null && !subwayAlertKey.isBlank());
     }
 
     public Mono<SubwayAlertResponse> getAlerts(boolean refresh) {
@@ -49,9 +49,9 @@ public class SubwayAlertService {
     @SuppressWarnings("unchecked")
     private Mono<SubwayAlertResponse> fetchAlerts() {
         String baseUrl = "https://apis.data.go.kr/B553766/ntce/getNtceList";
-        String fullUrl = baseUrl + "?serviceKey=" + serviceKey + "&pageNo=1&numOfRows=1&dataType=json";
+        String fullUrl = baseUrl + "?serviceKey=" + subwayAlertKey + "&pageNo=1&numOfRows=1&dataType=json";
 
-        return dataGoKrWebClient.get()
+        return subwayAlertWebClient.get()
                 .uri(URI.create(fullUrl))
                 .retrieve()
                 .bodyToMono(Map.class)

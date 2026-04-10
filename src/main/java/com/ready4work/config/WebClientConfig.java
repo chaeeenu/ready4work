@@ -41,7 +41,7 @@ public class WebClientConfig {
     }
 
     @Bean
-    public WebClient dataGoKrWebClient(@Value("${datagokr.subway.base-url}") String baseUrl) {
+    public WebClient subwayAlertWebClient(@Value("${datagokr.api.subway.alert.base-url}") String baseUrl) {
         return WebClient.builder()
                 .baseUrl(baseUrl)
                 .build();
