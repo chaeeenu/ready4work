@@ -57,7 +57,7 @@ public class SubwayArrivalService {
                             (List<Map<String, Object>>) body.get("realtimeArrivalList");
 
                     if (arrivalList == null || arrivalList.isEmpty()) {
-                        log.debug("No arrival data for station: {}", stationName);
+                        log.info("No arrival data for station: {} (body keys: {})", stationName, body.keySet());
                         return new SubwayArrivalResponse(stationName, List.of(), nowTimestamp());
                     }
 
@@ -67,7 +67,8 @@ public class SubwayArrivalService {
                                 (String) item.getOrDefault("arvlMsg2", ""),
                                 (String) item.getOrDefault("updnLine", ""),
                                 (String) item.getOrDefault("bstatnNm", ""),
-                                (String) item.getOrDefault("arvlCd", "")
+                                (String) item.getOrDefault("arvlCd", ""),
+                                String.valueOf(item.getOrDefault("subwayId", ""))
                         ));
                     }
 

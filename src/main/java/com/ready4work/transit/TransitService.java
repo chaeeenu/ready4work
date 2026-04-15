@@ -10,8 +10,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -19,42 +17,35 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class TransitService {
 
-    private final WebClient tmapWebClient;
+    private final WebClient odsayWebClient;
     private final WebClient kakaoWebClient;
-
-    private static final DateTimeFormatter DTIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
 
     // 좌표 캐시: 24시간 TTL
     private final ConcurrentHashMap<String, Mono<double[]>> coordCache = new ConcurrentHashMap<>();
-    // 경로 캐시: 5분 TTL
+    // 경로 캐시: 30분 TTL
     private final ConcurrentHashMap<String, Mono<TransitRouteResponse>> routeCache = new ConcurrentHashMap<>();
 
     public TransitService(
-            @Qualifier("tmapWebClient") WebClient tmapWebClient,
+            @Qualifier("odsayWebClient") WebClient odsayWebClient,
             @Qualifier("kakaoWebClient") WebClient kakaoWebClient
     ) {
-        this.tmapWebClient = tmapWebClient;
+        this.odsayWebClient = odsayWebClient;
         this.kakaoWebClient = kakaoWebClient;
-        log.info("TransitService initialized with TMAP API");
+        log.info("TransitService initialized with ODsay API");
     }
 
-    public Mono<TransitRouteResponse> getRoutes(String origin, String destination, String departureTime, boolean refresh) {
-        if (departureTime == null || departureTime.isBlank()) {
-            departureTime = LocalDateTime.now().format(DTIME_FORMAT);
-        }
-        // 분 단위로 캐시 키 생성 (YYYYMMDDHHmm)
-        String cacheKey = origin + "|" + destination + "|" + departureTime;
+    public Mono<TransitRouteResponse> getRoutes(String origin, String destination, boolean refresh) {
+        String cacheKey = origin + "|" + destination;
         if (refresh) {
             log.info("Refresh requested, clearing route cache for: {}", cacheKey);
             routeCache.remove(cacheKey);
         }
-        String finalDepartureTime = departureTime;
         return routeCache.computeIfAbsent(cacheKey, k ->
-                fetchRoutes(origin, destination, finalDepartureTime).cache(Duration.ofMinutes(5))
+                fetchRoutes(origin, destination).cache(Duration.ofMinutes(30))
         );
     }
 
-    private Mono<TransitRouteResponse> fetchRoutes(String origin, String destination, String departureTime) {
+    private Mono<TransitRouteResponse> fetchRoutes(String origin, String destination) {
         Mono<double[]> originCoord = getCoordinates(origin);
         Mono<double[]> destCoord = getCoordinates(destination);
 
@@ -62,9 +53,13 @@ public class TransitService {
                 .flatMap(tuple -> {
                     double[] oCoord = tuple.getT1();
                     double[] dCoord = tuple.getT2();
-                    return searchPath(oCoord[0], oCoord[1], dCoord[0], dCoord[1], departureTime);
+                    return searchPath(oCoord[0], oCoord[1], dCoord[0], dCoord[1]);
                 })
-                .map(pathResult -> buildResponse(origin, destination, pathResult));
+                .map(pathResult -> buildResponse(origin, destination, pathResult))
+                .onErrorResume(e -> {
+                    log.warn("ODsay route search failed: {}", e.getMessage());
+                    return Mono.just(new TransitRouteResponse(origin, destination, List.of()));
+                });
     }
 
     private Mono<double[]> getCoordinates(String placeName) {
@@ -124,131 +119,182 @@ public class TransitService {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private Mono<Map<String, Object>> searchPath(double sx, double sy, double ex, double ey, String searchDtime) {
-        log.info("TMAP searchPath: startX={}, startY={}, endX={}, endY={}, searchDtime={}", sx, sy, ex, ey, searchDtime);
+    private Mono<Map<String, Object>> searchPath(double sx, double sy, double ex, double ey) {
+        log.info("ODsay searchPath: SX={}, SY={}, EX={}, EY={}", sx, sy, ex, ey);
 
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("startX", String.valueOf(sx));
-        body.put("startY", String.valueOf(sy));
-        body.put("endX", String.valueOf(ex));
-        body.put("endY", String.valueOf(ey));
-        body.put("format", "json");
-        body.put("count", 5);
-        body.put("searchDtime", searchDtime);
-
-        return tmapWebClient.post()
-                .uri("/transit/routes")
-                .bodyValue(body)
+        return odsayWebClient.get()
+                .uri(uri -> uri.path("/searchPubTransPathT")
+                        .queryParam("SX", sx)
+                        .queryParam("SY", sy)
+                        .queryParam("EX", ex)
+                        .queryParam("EY", ey)
+                        .build())
                 .retrieve()
                 .bodyToMono((Class<Map<String, Object>>) (Class) Map.class)
-                .doOnNext(response -> log.info("TMAP response keys: {}", response.keySet()));
+                .doOnNext(response -> log.info("ODsay response keys: {}", response.keySet()));
     }
 
     @SuppressWarnings("unchecked")
     private TransitRouteResponse buildResponse(String origin, String destination, Map<String, Object> response) {
-        Map<String, Object> metaData = (Map<String, Object>) response.get("metaData");
-        if (metaData == null) {
-            log.warn("TMAP response has no 'metaData'. Full response: {}", response);
+        Map<String, Object> result = (Map<String, Object>) response.get("result");
+        if (result == null) {
+            log.warn("ODsay response has no 'result'. Full response: {}", response);
             return new TransitRouteResponse(origin, destination, List.of());
         }
 
-        Map<String, Object> plan = (Map<String, Object>) metaData.get("plan");
-        if (plan == null) {
-            log.warn("TMAP response has no 'plan'. metaData keys: {}", metaData.keySet());
+        // ODsay 오류 응답 처리
+        if (result.containsKey("error")) {
+            log.warn("ODsay returned error: {}", result.get("error"));
             return new TransitRouteResponse(origin, destination, List.of());
         }
 
-        List<Map<String, Object>> itineraries = (List<Map<String, Object>>) plan.get("itineraries");
-        if (itineraries == null || itineraries.isEmpty()) {
-            log.warn("TMAP returned no itineraries");
+        List<Map<String, Object>> paths = (List<Map<String, Object>>) result.get("path");
+        if (paths == null || paths.isEmpty()) {
+            log.warn("ODsay returned no paths");
             return new TransitRouteResponse(origin, destination, List.of());
         }
 
-        List<TransitRoute> allRoutes = itineraries.stream()
-                .map(this::mapItinerary)
-                .toList();
+        TransitRoute optimal = null;      // pathType 1: 최적 경로
+        TransitRoute lessTransfer = null; // pathType 3: 환승 적은 경로
 
-        TransitRoute fastest = allRoutes.stream()
-                .min(Comparator.comparingInt(TransitRoute::totalTime))
-                .orElse(null);
-
-        TransitRoute leastTransfer = allRoutes.stream()
-                .min(Comparator.comparingInt(TransitRoute::transferCount)
-                        .thenComparingInt(TransitRoute::totalTime))
-                .orElse(null);
+        for (Map<String, Object> path : paths) {
+            int pathType = ((Number) path.get("pathType")).intValue();
+            if (pathType == 1 && optimal == null) {
+                optimal = mapPath(path);
+            } else if (pathType == 3 && lessTransfer == null) {
+                lessTransfer = mapPath(path);
+            }
+        }
 
         List<TransitRoute> routes;
-        if (fastest == null) {
+        if (optimal == null && lessTransfer == null) {
             routes = List.of();
-        } else if (fastest.equals(leastTransfer)) {
-            routes = List.of(fastest);
+        } else if (optimal == null) {
+            routes = List.of(lessTransfer);
+        } else if (lessTransfer == null || optimal.equals(lessTransfer)) {
+            routes = List.of(optimal);
         } else {
-            routes = List.of(fastest, leastTransfer);
+            routes = List.of(optimal, lessTransfer);
         }
 
         return new TransitRouteResponse(origin, destination, routes);
     }
 
     @SuppressWarnings("unchecked")
-    private TransitRoute mapItinerary(Map<String, Object> itinerary) {
-        int totalTimeSec = ((Number) itinerary.get("totalTime")).intValue();
-        int totalTime = totalTimeSec / 60;
-        int transferCount = ((Number) itinerary.get("transferCount")).intValue();
+    private TransitRoute mapPath(Map<String, Object> path) {
+        Map<String, Object> info = (Map<String, Object>) path.get("info");
+        int totalTime = ((Number) info.get("totalTime")).intValue();
+        // ODsay 요금 필드는 info.payment (totalFare 아님)
+        int totalFare = ((Number) info.getOrDefault("payment", 0)).intValue();
+        int busCount = ((Number) info.getOrDefault("busTransitCount", 0)).intValue();
+        int subwayCount = ((Number) info.getOrDefault("subwayTransitCount", 0)).intValue();
+        int transferCount = Math.max(0, busCount + subwayCount - 1);
 
-        Map<String, Object> fare = (Map<String, Object>) itinerary.get("fare");
-        int totalCost = 0;
-        if (fare != null) {
-            Map<String, Object> regular = (Map<String, Object>) fare.get("regular");
-            if (regular != null) {
-                totalCost = ((Number) regular.get("totalFare")).intValue();
-            }
-        }
-
-        int totalWalkTimeSec = ((Number) itinerary.get("totalWalkTime")).intValue();
-        int walkTime = totalWalkTimeSec / 60;
-
-        List<Map<String, Object>> legs = (List<Map<String, Object>>) itinerary.get("legs");
-        List<TransitLeg> transitLegs = new ArrayList<>();
+        List<Map<String, Object>> subPaths = (List<Map<String, Object>>) path.get("subPath");
+        List<TransitLeg> legs = new ArrayList<>();
         List<String> lineNames = new ArrayList<>();
+        int walkTime = 0;
 
-        for (Map<String, Object> leg : legs) {
-            String mode = ((String) leg.get("mode")).toLowerCase();
-            int sectionTimeSec = ((Number) leg.get("sectionTime")).intValue();
-            int sectionTime = sectionTimeSec / 60;
+        if (subPaths != null) {
+            for (Map<String, Object> subPath : subPaths) {
+                int trafficType = ((Number) subPath.get("trafficType")).intValue();
+                int sectionTime = ((Number) subPath.getOrDefault("sectionTime", 0)).intValue();
 
-            if ("walk".equals(mode)) {
-                if (sectionTime > 0) {
-                    transitLegs.add(new TransitLeg("walk", null, null, null, null, 0, sectionTime));
-                }
-            } else {
-                String route = (String) leg.get("route");
-                String routeColor = (String) leg.get("routeColor");
-                String lineColor = (routeColor != null && !routeColor.isBlank())
-                        ? "#" + routeColor.replaceFirst("^#", "")
-                        : "#888888";
-
-                Map<String, Object> start = (Map<String, Object>) leg.get("start");
-                Map<String, Object> end = (Map<String, Object>) leg.get("end");
-                String startName = start != null ? (String) start.get("name") : "";
-                String endName = end != null ? (String) end.get("name") : "";
-
-                int stationCount = 0;
-                Map<String, Object> passStopList = (Map<String, Object>) leg.get("passStopList");
-                if (passStopList != null) {
-                    List<?> stations = (List<?>) passStopList.get("stations");
-                    if (stations != null && stations.size() > 1) {
-                        stationCount = stations.size() - 1;
+                if (trafficType == 3) {
+                    // 도보
+                    walkTime += sectionTime;
+                    if (sectionTime > 0) {
+                        legs.add(TransitLeg.ofBasic("walk", null, null, null, null, 0, sectionTime, null, null));
                     }
-                }
+                } else if (trafficType == 1) {
+                    // 지하철
+                    // ODsay: startName/endName은 subPath 직속 필드
+                    List<Map<String, Object>> lanes = (List<Map<String, Object>>) subPath.get("lane");
+                    int stationCount = ((Number) subPath.getOrDefault("stationCount", 0)).intValue();
+                    String startName = (String) subPath.getOrDefault("startName", "");
+                    String endName   = (String) subPath.getOrDefault("endName", "");
 
-                String type = "bus".equals(mode) ? "bus" : "subway";
-                String lineName = route != null ? route : (type.equals("bus") ? "버스" : "지하철");
-                lineNames.add(lineName);
-                transitLegs.add(new TransitLeg(type, lineName, lineColor, startName, endName, stationCount, sectionTime));
+                    String lineName = "";
+                    String lineColor = "#888888";
+                    if (lanes != null && !lanes.isEmpty()) {
+                        lineName = (String) lanes.get(0).get("name");
+                        String color = (String) lanes.get(0).get("color");
+                        if (color != null && !color.isBlank()) {
+                            lineColor = "#" + color.replaceFirst("^#", "");
+                        } else {
+                            // color 필드가 비어 있을 때 subwayCode로 표준 색상 매핑
+                            Object codeObj = lanes.get(0).get("subwayCode");
+                            if (codeObj != null) {
+                                lineColor = subwayColorByCode(((Number) codeObj).intValue());
+                            }
+                        }
+                    }
+
+                    lineNames.add(lineName != null ? lineName : "지하철");
+                    legs.add(TransitLeg.ofBasic("subway", lineName, lineColor, startName, endName, stationCount, sectionTime, null, null));
+
+                } else if (trafficType == 2) {
+                    // 버스
+                    // ODsay: startName/endName/startX(경도)/startY(위도)는 subPath 직속 필드
+                    List<Map<String, Object>> lanes = (List<Map<String, Object>>) subPath.get("lane");
+                    int stationCount = ((Number) subPath.getOrDefault("stationCount", 0)).intValue();
+                    String startName = (String) subPath.getOrDefault("startName", "");
+                    String endName   = (String) subPath.getOrDefault("endName", "");
+                    Double busStopLat = parseDouble(subPath.get("startY")); // Y = 위도(latitude)
+                    Double busStopLon = parseDouble(subPath.get("startX")); // X = 경도(longitude)
+
+                    String lineName = "";
+                    String lineColor = "#888888";
+                    if (lanes != null && !lanes.isEmpty()) {
+                        lineName = (String) lanes.get(0).get("busNo");
+                        String color = (String) lanes.get(0).get("color");
+                        if (color != null && !color.isBlank()) {
+                            lineColor = "#" + color.replaceFirst("^#", "");
+                        }
+                    }
+
+                    lineNames.add(lineName != null ? lineName : "버스");
+                    legs.add(TransitLeg.ofBasic("bus", lineName, lineColor, startName, endName, stationCount, sectionTime, busStopLat, busStopLon));
+                }
             }
         }
 
         String summary = String.join(" → ", lineNames);
-        return new TransitRoute(totalTime, transferCount, totalCost, walkTime, summary, transitLegs);
+        return TransitRoute.ofBasic(totalTime, transferCount, totalFare, walkTime, summary, legs);
+    }
+
+    /** ODsay subwayCode → 서울 지하철 표준 노선 색상 */
+    private static String subwayColorByCode(int code) {
+        return switch (code) {
+            case 1   -> "#0052A4"; // 1호선 (진파랑)
+            case 2   -> "#00A84D"; // 2호선 (초록)
+            case 3   -> "#EF7C1C"; // 3호선 (주황)
+            case 4   -> "#00A5DE"; // 4호선 (하늘)
+            case 5   -> "#996CAC"; // 5호선 (보라)
+            case 6   -> "#CD7C2F"; // 6호선 (갈색)
+            case 7   -> "#747F00"; // 7호선 (올리브)
+            case 8   -> "#E6186C"; // 8호선 (분홍)
+            case 9   -> "#BDB092"; // 9호선 (금색)
+            case 101 -> "#0090D2"; // 공항철도
+            case 104 -> "#77C4A3"; // 경의중앙선
+            case 107 -> "#789F39"; // 에버라인
+            case 108 -> "#179C74"; // 경춘선
+            case 109 -> "#D4003B"; // 신분당선
+            case 110 -> "#FDA600"; // 의정부경전철
+            case 111 -> "#F5A200"; // 수인분당선
+            case 112 -> "#B7C452"; // 우이신설선
+            case 113 -> "#8FC2E8"; // 서해선
+            case 114 -> "#947DC4"; // 김포골드라인
+            default  -> "#888888";
+        };
+    }
+
+    private Double parseDouble(Object value) {
+        if (value == null) return null;
+        try {
+            return Double.parseDouble(value.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

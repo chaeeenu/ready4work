@@ -8,10 +8,10 @@ weather:
     key: ${env.WEATHER_API_KEY}
     base-url: https://api.openweathermap.org
 
-tmap:
+odsay:
   api:
-    key: ${env.TMAP_APP_KEY}
-    base-url: https://apis.openapi.sk.com
+    key: ${env.ODSAY_API_KEY}
+    base-url: https://api.odsay.com/v1/api
 
 kakao:
   api:
@@ -30,6 +30,9 @@ datagokr:
         key: ${env.DATA_GO_KR_SUBWAY_ALERT_KEY}
         base-url: https://apis.data.go.kr/B553766/ntce
     bus:
+      station:
+        key: ${env.DATA_GO_KR_BUS_STATION_INFO_KEY}
+        base-url: http://ws.bus.go.kr/api/rest/stationinfo
       arrival:
         key: ${env.DATA_GO_KR_BUS_ARRIVAL_INFO_KEY}
         base-url: http://ws.bus.go.kr/api/rest/arrive

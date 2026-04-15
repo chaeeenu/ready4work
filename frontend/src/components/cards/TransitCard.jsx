@@ -1,6 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useTransitData } from '../../hooks/useTransitData'
-import { useSubwayArrivals } from '../../hooks/useSubwayArrivals'
 import { useCardConfig } from '../../hooks/useCardConfig'
 import { cn } from '../../utils/cn'
 import styles from './TransitCard.module.css'
@@ -40,6 +39,14 @@ function SetupForm({ settings, onSave }) {
   )
 }
 
+/** "수도권2호선" → "2호선", "수도권9호선(급행)" → "9호선(급행)", "345" → "345" */
+function displayLineName(leg) {
+  if (leg.type === 'subway' && leg.lineName) {
+    return leg.lineName.replace(/^수도권/, '')
+  }
+  return leg.lineName ?? ''
+}
+
 function LegBadge({ leg }) {
   if (leg.type === 'walk') {
     return (
@@ -53,69 +60,113 @@ function LegBadge({ leg }) {
     )
   }
 
+  const hasArrival = leg.arrivalMessage != null
+  const isAdjusted = hasArrival && leg.waitTime != null && leg.adjustedTime !== leg.sectionTime
+
   return (
     <div className={styles.leg}>
       <span className={styles.marker}>
         <span className={styles.markerDot} style={{ background: leg.lineColor }} />
       </span>
       <span className={styles.lineBadge} style={{ background: leg.lineColor }}>
-        {leg.lineName}
+        {displayLineName(leg)}
       </span>
       <div className={styles.legDetail}>
         <span className={styles.legStations}>{leg.startName} → {leg.endName}</span>
-        <span className={styles.legMeta}>{leg.stationCount}개 {leg.type === 'bus' ? '정류장' : '역'} · {leg.sectionTime}분</span>
+        <span className={styles.legMeta}>
+          {leg.stationCount}개 {leg.type === 'bus' ? '정류장' : '역'}
+          {' · '}
+          {isAdjusted
+            ? <>{leg.adjustedTime}분 <span className={styles.estimateInline}>(예상 {leg.sectionTime}분)</span></>
+            : <>{leg.sectionTime}분</>
+          }
+        </span>
+        {hasArrival && (
+          <div className={styles.legArrivalInfo}>
+            <span className={styles.arrivalBadge}>{leg.arrivalMessage}</span>
+            {leg.arrivalMessage2 && leg.arrivalMessage2.trim() && (
+              <span className={styles.nextArrival}>다음: {leg.arrivalMessage2}</span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-function ArrivalInfo({ arrivals }) {
-  if (!arrivals || arrivals.length === 0) return null
-  const display = arrivals.slice(0, 3)
+function TimeDisplay({ route }) {
+  const isEnriched = route.enrichedAt != null && route.adjustedTotalTime !== route.totalTime
+
+  const displayTime = isEnriched ? route.adjustedTotalTime : route.totalTime
+
+  const formatTime = (minutes) => {
+    const parts = []
+    if (minutes >= 60) parts.push(<>{Math.floor(minutes / 60)}<small>시간</small></>)
+    if (minutes % 60 > 0 || minutes === 0) parts.push(<>{minutes % 60}<small>분</small></>)
+    return parts
+  }
+
   return (
-    <div className={styles.arrivalInfo}>
-      {display.map((a, i) => (
-        <div key={i} className={styles.arrivalRow}>
-          <span className={styles.arrivalLine}>{a.trainLineNm}</span>
-          <span className={styles.arrivalDir}>{a.bstatnNm}행</span>
-          <span className={styles.arrivalTime}>{a.arvlMsg2}</span>
-        </div>
-      ))}
+    <div className={styles.timeDisplay}>
+      <span className={styles.totalTime}>{formatTime(displayTime)}</span>
+      {isEnriched && (
+        <span className={styles.referenceTime}>경로 예상 {route.totalTime}분</span>
+      )}
     </div>
   )
 }
 
-function RouteCard({ route, label, arrivalData }) {
+function EtaDisplay({ route }) {
+  if (!route.enrichedAt) return null
+
+  const displayTime = route.adjustedTotalTime !== route.totalTime
+    ? route.adjustedTotalTime
+    : route.totalTime
+  const eta = new Date(Date.now() + displayTime * 60_000)
+  const etaStr = `${String(eta.getHours()).padStart(2, '0')}:${String(eta.getMinutes()).padStart(2, '0')}`
+
+  return (
+    <div className={styles.etaDisplay}>
+      지금 출발 시 약 <strong>{etaStr}</strong> 도착 예상
+    </div>
+  )
+}
+
+function Freshness({ enrichedAt }) {
+  if (!enrichedAt) return null
+
+  const updatedDate = new Date(enrichedAt.replace(' ', 'T'))
+  const diffSec = Math.round((Date.now() - updatedDate.getTime()) / 1000)
+  const label = diffSec < 5 ? '방금' : `${diffSec}초 전`
+
+  return <span className={styles.freshness}>{label} 업데이트</span>
+}
+
+function RouteCard({ route, label, destination }) {
   return (
     <div className={styles.routeCard}>
-      {label && <span className={styles.routeLabel}>{label}</span>}
+      <div className={styles.routeCardHeader}>
+        {label && <span className={styles.routeLabel}>{label}</span>}
+        <Freshness enrichedAt={route.enrichedAt} />
+      </div>
       <div className={styles.routeSummary}>
-        <span className={styles.totalTime}>
-          {route.totalTime >= 60 && <>{Math.floor(route.totalTime / 60)}<small>시간</small></>}
-          {route.totalTime % 60 > 0 && <>{route.totalTime % 60}<small>분</small></>}
-          {route.totalTime === 0 && <>0<small>분</small></>}
-        </span>
+        <TimeDisplay route={route} />
         <div className={styles.routeMeta}>
           <span>환승 {route.transferCount}회</span>
           <span>{route.totalCost.toLocaleString()}원</span>
           {route.walkTime > 0 && <span>도보 {route.walkTime}분</span>}
         </div>
       </div>
+      <EtaDisplay route={route} />
       <div className={styles.timeline}>
-        {route.legs.map((leg, i) => {
-          const isFirstSubway = leg.type === 'subway' && !route.legs.slice(0, i).some(l => l.type === 'subway')
-          return (
-            <div key={i}>
-              <LegBadge leg={leg} />
-              {isFirstSubway && arrivalData && <ArrivalInfo arrivals={arrivalData.arrivals} />}
-            </div>
-          )
-        })}
+        {route.legs.map((leg, i) => (
+          <LegBadge key={i} leg={leg} />
+        ))}
         <div className={styles.arrivalLabel}>
           <span className={styles.marker}>
             <span className={styles.markerEnd} />
           </span>
-          <span>{route.legs.findLast(l => l.type !== 'walk')?.endName} 도착</span>
+          <span>{destination} 도착</span>
         </div>
       </div>
     </div>
@@ -132,15 +183,6 @@ export default function TransitCard({ settings = {} }) {
   )
   const [editing, setEditing] = useState(false)
 
-  const firstSubwayStation = useMemo(() => {
-    if (!data || !data.routes || data.routes.length === 0) return null
-    const mainRoute = data.routes[0]
-    const subwayLeg = mainRoute.legs.find(l => l.type === 'subway')
-    return subwayLeg ? subwayLeg.startName : null
-  }, [data])
-
-  const { data: arrivalData } = useSubwayArrivals(firstSubwayStation)
-
   const handleSave = (newSettings) => {
     updateSettings('transit', newSettings)
     setEditing(false)
@@ -154,8 +196,8 @@ export default function TransitCard({ settings = {} }) {
     )
   }
 
-  if (loading) return <div className={styles.transit}>경로를 검색하는 중…</div>
-  if (error) return <div className={styles.transit}><div className={styles.error}>⚠️ {error}</div></div>
+  if (loading && !data) return <div className={styles.transit}>경로를 검색하는 중…</div>
+  if (error && !data) return <div className={styles.transit}><div className={styles.error}>⚠️ {error}</div></div>
   if (!data || data.routes.length === 0) {
     return (
       <div className={styles.transit}>
@@ -184,10 +226,10 @@ export default function TransitCard({ settings = {} }) {
 
       {data.routes.map((route, i) => {
         const labels = data.routes.length === 1
-          ? ['최단시간']
-          : ['최단시간', '최소환승']
+          ? ['최적 경로']
+          : ['최적 경로', '환승 적음']
         return (
-          <RouteCard key={i} route={route} label={labels[i]} arrivalData={i === 0 ? arrivalData : null} />
+          <RouteCard key={i} route={route} label={labels[i]} destination={data.destination} />
         )
       })}
     </div>

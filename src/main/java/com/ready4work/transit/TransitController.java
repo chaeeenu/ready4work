@@ -12,14 +12,19 @@ import reactor.core.publisher.Mono;
 public class TransitController {
 
     private final TransitService transitService;
+    private final TransitEnrichmentService enrichmentService;
 
     @GetMapping("/api/transit/routes")
     public Mono<TransitRouteResponse> getRoutes(
             @RequestParam String origin,
             @RequestParam String destination,
-            @RequestParam(required = false) String departureTime,
-            @RequestParam(required = false, defaultValue = "false") boolean refresh
+            @RequestParam(required = false, defaultValue = "false") boolean refresh,
+            @RequestParam(required = false, defaultValue = "false") boolean enrich
     ) {
-        return transitService.getRoutes(origin, destination, departureTime, refresh);
+        Mono<TransitRouteResponse> routes = transitService.getRoutes(origin, destination, refresh);
+        if (enrich) {
+            return routes.flatMap(enrichmentService::enrich);
+        }
+        return routes;
     }
 }

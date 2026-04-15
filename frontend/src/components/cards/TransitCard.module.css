@@ -124,14 +124,24 @@
   background: var(--color-bg);
 }
 
-.mainRoute {
-  background: var(--color-accent-bg);
+.routeCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-xs);
 }
 
 .routeSummary {
   display: flex;
   align-items: center;
   gap: var(--space-md);
+}
+
+/* Time Display */
+.timeDisplay {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .totalTime {
@@ -146,12 +156,43 @@
   font-weight: 400;
 }
 
+.referenceTime {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+.estimateInline {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+}
+
 .routeMeta {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-sm);
   font-size: var(--text-xs);
   color: var(--color-text-secondary);
+}
+
+/* ETA Display */
+.etaDisplay {
+  margin-top: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-bg, rgba(59, 130, 246, 0.08));
+  font-size: var(--text-xs);
+  color: var(--color-accent);
+}
+
+.etaDisplay strong {
+  font-weight: 700;
+}
+
+/* Freshness */
+.freshness {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
 }
 
 /* Timeline */
@@ -264,7 +305,6 @@
 /* Route Label */
 .routeLabel {
   display: inline-block;
-  margin-bottom: var(--space-xs);
   padding: 1px var(--space-sm);
   border-radius: 999px;
   background: var(--color-accent);
@@ -273,37 +313,29 @@
   font-weight: 600;
 }
 
-/* Arrival Info */
-.arrivalInfo {
-  margin: var(--space-xs) 0;
-  padding: var(--space-xs) var(--space-sm);
-  background: var(--color-bg);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-}
-
-.arrivalRow {
+/* Leg Arrival Info (실시간 도착정보) */
+.legArrivalInfo {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  padding: 2px 0;
+  margin-top: 1px;
 }
 
-.arrivalLine {
-  font-weight: 600;
-  color: var(--color-text);
-  white-space: nowrap;
-}
-
-.arrivalDir {
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-
-.arrivalTime {
-  margin-left: auto;
+.arrivalBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px var(--space-xs);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-bg, rgba(59, 130, 246, 0.08));
   color: var(--color-accent);
+  font-size: 10px;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.nextArrival {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
   white-space: nowrap;
 }
 
